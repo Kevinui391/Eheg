@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kevin Mini App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0b0b0b;
+            --card-bg: #1a1a1a;
+            --green-text: #4ade80;
+            --gray-text: #9ca3af;
+            --accent-green: #22c55e;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; padding: 0;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Верхняя панель */
+        .top-status {
+            display: flex;
+            gap: 10px;
+            padding: 15px;
+            background: var(--bg-dark);
+        }
+        .status-pill {
+            background: var(--card-bg);
+            padding: 8px 15px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            flex: 1;
+        }
+
+        /* Сетка игр */
+        .page { display: none; padding: 10px; padding-bottom: 100px; }
+        .page.active { display: block; }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .game-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            overflow: hidden;
+            text-align: center;
+            padding-bottom: 10px;
+            border: 1px solid #2a2a2a;
+        }
+
+        .game-card img {
+            width: 100%;
+            aspect-ratio: 1/1;
+            object-fit: cover;
+            display: block;
+        }
+
+        .game-name {
+            font-size: 12px;
+            margin-top: 8px;
+            color: var(--gray-text);
+        }
+
+        /* Нижнее меню */
+        .nav-bar {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: rgba(26, 26, 26, 0.95);
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            backdrop-filter: blur(10px);
+            border-top: 1px solid #333;
+        }
+
+        .nav-item {
+            text-align: center;
+            color: var(--gray-text);
+            font-size: 10px;
+            flex: 1;
+        }
+        .nav-item.active { color: var(--green-text); }
+        .nav-item svg { width: 24px; height: 24px; margin-bottom: 4px; }
+
+        /* Окно ставки */
+        .bet-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .bet-modal {
+            background: var(--card-bg);
+            width: 85%;
+            padding: 20px;
+            border-radius: 24px;
+            text-align: center;
+        }
+        .bet-input {
+            width: 100%;
+            padding: 15px;
+            margin: 15px 0;
+            background: #000;
+            border: 1px solid #444;
+            color: var(--green-text);
+            font-size: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .btn-confirm {
+            background: var(--accent-green);
+            color: black;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-weight: bold;
+            width: 100%;
+        }
+
+        /* Профиль */
+        .profile-header {
+            text-align: center;
+            padding: 30px 0;
+        }
+        .avatar {
+            width: 80px; height: 80px;
+            border-radius: 20px;
+            background: #333;
+            margin: 0 auto 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 30px; border: 2px solid var(--green-text);
+        }
+        .admin-btn {
+            background: #ef4444;
+            color: white;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="top-status">
+    <div class="status-pill">
+        <span id="top-balance">0</span> <span style="margin-left:5px; color:#aaa">LC 🪙</span>
+    </div>
+    <div class="status-pill" onclick="openPage('bp')">
+        🎯 Боевой пропуск
+    </div>
+</div>
+
+<div id="games" class="page active">
+    <div class="games-grid" id="games-list">
+        </div>
+</div>
+
+<div id="profile" class="page">
+    <div class="profile-header">
+        <div class="avatar" id="prof-avatar">👤</div>
+        <h2 id="prof-name">User</h2>
+        <div style="background:#222; padding:15px; border-radius:15px; margin:10px;">
+            <div style="color:#aaa; font-size:12px;">БАЛАНС</div>
+            <div style="font-size:24px; font-weight:bold;"><span id="prof-balance">0</span> 🪙</div>
+        </div>
+        <div id="admin-panel" class="admin-btn" onclick="openAdminMenu()">Админ-панель</div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+        <div class="status-pill" onclick="changeName()">📝 Изменить имя (10кк)</div>
+        <div class="status-pill" onclick="changeColor()">🎨 Изменить цвет имени (15кк)</div>
+    </div>
+</div>
+
+<div id="clans" class="page">
+    <h2 style="text-align:center">Топ Кланов</h2>
+    <div style="background:var(--card-bg); padding:20px; border-radius:20px; text-align:center;">
+        <div style="color:var(--green-text); font-size:24px;">1 629 000 000 000 🪙</div>
+        <p style="font-size:12px; color:#666;">Призовой фонд</p>
+    </div>
+</div>
+
+<div class="bet-overlay" id="bet-modal">
+    <div class="bet-modal">
+        <h3 id="bet-game-title">Игра</h3>
+        <p style="font-size:12px; color:#aaa;">Введите ставку (1,000,000 - 70,000,000)</p>
+        <input type="number" id="bet-amount" class="bet-input" placeholder="Сумма LC">
+        <button class="btn-confirm" onclick="startGame()">ИГРАТЬ</button>
+        <p onclick="closeBet()" style="margin-top:15px; color:#666;">Отмена</p>
+    </div>
+</div>
+
+<nav class="nav-bar">
+    <div class="nav-item" onclick="openPage('rating')">📊<br>Рейтинг</div>
+    <div class="nav-item active" onclick="openPage('games')">🎮<br>Игры</div>
+    <div class="nav-item" onclick="openPage('profile')">👤<br>Профиль</div>
+    <div class="nav-item" onclick="openPage('clans')">👥<br>Клан</div>
+</nav>
+
+<script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+
+    // Начальные данные
+    let user = {
+        name: "Игрок",
+        balance: 70800000,
+        isPremium: false,
+        isBanned: false,
+        color: 'white'
+    };
+
+    const games = [
+        { name: "Dog Slot", img: "https://i.ibb.co/68fKxL3/dog.png" },
+        { name: "Penalty", img: "https://i.ibb.co/v4yZg8k/ball.png" },
+        { name: "SkyFly", img: "https://i.ibb.co/mS8080f/bomb.png" },
+        { name: "Bonanza 1000", img: "https://i.ibb.co/30mHqW3/candy.png" },
+        { name: "MineDrop", img: "https://i.ibb.co/0fV8v0y/mine.png" },
+        { name: "Сапёр Макс", img: "https://i.ibb.co/f4pXqXz/saper.png" },
+        { name: "CrazyTime", img: "https://i.ibb.co/p3Y2Z0D/crazy.png" },
+        { name: "Crash", img: "https://i.ibb.co/pXqXzXz/crash.png" },
+        { name: "Plinko", img: "https://i.ibb.co/pXqXzXz/plinko.png" }
+    ];
+
+    let currentGame = "";
+
+    function init() {
+        // Проверка на Kevin
+        let savedName = localStorage.getItem('casino_name');
+        if (savedName) user.name = savedName;
+        
+        // Симуляция входа: если имя Kevin - даем права
+        if (user.name === "Kevin") {
+            document.getElementById('admin-panel').style.display = 'block';
+        }
+
+        renderGames();
+        updateUI();
+    }
+
+    function renderGames() {
+        const list = document.getElementById('games-list');
+        games.forEach(g => {
+            list.innerHTML += `
+                <div class="game-card" onclick="openBet('${g.name}')">
+                    <img src="${g.img}" onerror="this.src='https://via.placeholder.com/150/1a1a1a/ffffff?text=${g.name}'">
+                    <div class="game-name">${g.name}</div>
+                </div>
+            `;
+        });
+    }
+
+    function updateUI() {
+        const balStr = user.balance.toLocaleString();
+        document.getElementById('top-balance').innerText = balStr;
+        document.getElementById('prof-balance').innerText = balStr;
+        document.getElementById('prof-name').innerText = user.name;
+        document.getElementById('prof-name').style.color = user.color;
+    }
+
+    function openPage(id) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        
+        const target = document.getElementById(id);
+        if(target) target.classList.add('active');
+        updateUI();
+    }
+
+    function openBet(gameName) {
+        if(user.isBanned) return alert("Вы забанены!");
+        currentGame = gameName;
+        document.getElementById('bet-game-title').innerText = gameName;
+        document.getElementById('bet-modal').style.display = 'flex';
+    }
+
+    function closeBet() {
+        document.getElementById('bet-modal').style.display = 'none';
+    }
+
+    function startGame() {
+        const amount = parseInt(document.getElementById('bet-amount').value);
+        
+        if (isNaN(amount) || amount < 1000000 || amount > 70000000) {
+            alert("Ставка должна быть от 1кк до 70кк!");
+            return;
+        }
+
+        if (user.balance < amount) {
+            alert("У вас нет деняг!");
+            return;
+        }
+
+        // Логика победы/проигрыша
+        user.balance -= amount;
+        let win = Math.random() > 0.5;
+        
+        if(win) {
+            let profit = Math.floor(amount * 1.9);
+            user.balance += profit;
+            tg.showConfirm(`Победа! Вы выиграли ${profit.toLocaleString()} LC`);
+        } else {
+            tg.showAlert(`Проигрыш! Попробуйте снова.`);
+        }
+        
+        updateUI();
+        closeBet();
+    }
+
+    function changeName() {
+        if(user.balance < 10000000) return alert("Нужно 10кк!");
+        let newName = prompt("Введите новое имя:");
+        if(newName === "Kevin") return alert("Это имя зарезервировано!");
+        if(newName) {
+            user.balance -= 10000000;
+            user.name = newName;
+            localStorage.setItem('casino_name', newName);
+            updateUI();
+        }
+    }
+
+    function changeColor() {
+        if(user.balance < 15000000) return alert("Нужно 15кк!");
+        let colors = ['#4ade80', '#f87171', '#60a5fa', '#fbbf24', '#c084fc'];
+        user.color = colors[Math.floor(Math.random()*colors.length)];
+        user.balance -= 15000000;
+        updateUI();
+    }
+
+    // --- АДМИНКА ТОЛЬКО ДЛЯ KEVIN ---
+    function openAdminMenu() {
+        let action = prompt("1-Бан, 2-Разбан, 3-Выдать деньги, 4-Отнять, 5-Премиум");
+        if(action == "3") {
+            let amt = parseInt(prompt("Сколько выдать?"));
+            user.balance += amt;
+        }
+        if(action == "1") { user.isBanned = true; alert("Забанен"); }
+        if(action == "5") { user.isPremium = true; alert("Батлпасс выдан"); }
+        updateUI();
+    }
+
+    // Каждые 3 часа отнимает 20кк (налог)
+    setInterval(() => {
+        if(user.balance >= 20000000) {
+            user.balance -= 20000000;
+            updateUI();
+            console.log("Налог списан");
+        }
+    }, 3 * 60 * 60 * 1000);
+
+    init();
+</script>
+
+</body>
+</html>
